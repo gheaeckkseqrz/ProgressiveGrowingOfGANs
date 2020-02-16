@@ -1,12 +1,10 @@
 from __future__ import print_function
 import argparse
-import os
 import random
 import torch
+import torchvision
 import torch.utils.data
-import torchvision.datasets as dset
 import torchvision.transforms as transforms
-import torchvision.utils as vutils
 
 import generator
 import discriminator
@@ -18,25 +16,14 @@ parser.add_argument('--batchSize', type=int, default=64, help='input batch size'
 parser.add_argument('--imageSize', type=int, default=64, help='the height / width of the input image to network')
 parser.add_argument('--niter', type=int, default=25, help='number of epochs to train for')
 parser.add_argument('--lr', type=float, default=0.0002, help='learning rate, default=0.0002')
-parser.add_argument('--beta1', type=float, default=0.5, help='beta1 for adam. default=0.5')
-parser.add_argument('--cuda', action='store_true', help='enables cuda')
 parser.add_argument('--netG', default='', help="path to netG (to continue training)")
 parser.add_argument('--netD', default='', help="path to netD (to continue training)")
-parser.add_argument('--outf', default='.', help='folder to output images and model checkpoints')
 
 opt = parser.parse_args()
 print(opt)
 
-try:
-    os.makedirs(opt.outf)
-except OSError:
-    pass
-
-if torch.cuda.is_available() and not opt.cuda:
-    print("WARNING: You have a CUDA device, so you should probably run with --cuda")
-
 # folder dataset
-dataset = dset.ImageFolder(root=opt.dataroot,
+dataset = torchvision.datasets.ImageFolder(root=opt.dataroot,
                                transform=transforms.Compose([
                                    transforms.Resize(opt.imageSize),
                                    transforms.CenterCrop(opt.imageSize),
@@ -46,53 +33,45 @@ dataset = dset.ImageFolder(root=opt.dataroot,
 nc=3
 dataloader = torch.utils.data.DataLoader(dataset, batch_size=opt.batchSize, shuffle=True, num_workers=8)
 
-device = torch.device("cuda:0" if opt.cuda else "cpu")
-
-netG = generator.Generator(100, 64, nc).to(device)
+netG = generator.Generator(100, 64, nc).cuda()
 if opt.netG != '':
     netG.load_state_dict(torch.load(opt.netG))
 print(netG)
 
-netD = discriminator.Discriminator(64, nc).to(device)
+netD = discriminator.Discriminator(64, nc).cuda()
 if opt.netD != '':
     netD.load_state_dict(torch.load(opt.netD))
 print(netD)
 
 criterion = torch.nn.BCELoss()
 
-fixed_noise = torch.randn(opt.batchSize, 100, 1, 1, device=device)
-real_label = 1
-fake_label = 0
-
+fixed_noise = torch.randn(opt.batchSize, 100, 1, 1).cuda()
 # setup optimizer
-optimizerD = torch.optim.Adam(netD.parameters(), lr=opt.lr, betas=(opt.beta1, 0.999))
-optimizerG = torch.optim.Adam(netG.parameters(), lr=opt.lr, betas=(opt.beta1, 0.999))
+optimizerD = torch.optim.Adam(netD.parameters(), lr=opt.lr, betas=(.5, 0.999))
+optimizerG = torch.optim.Adam(netG.parameters(), lr=opt.lr, betas=(.5, 0.999))
 
 for epoch in range(opt.niter):
     for i, data in enumerate(dataloader, 0):
         data = data[0].cuda()
-        batch_size = data.shape[0]
-        label = torch.full((batch_size,), real_label, device=device)        
-        noise = torch.randn(batch_size, 100, 1, 1, device=device)
+        noise = torch.randn(data.shape[0], 100, 1, 1).cuda()
         generated_samples = netG(noise)
         netD.train(data, generated_samples.data)
         optimizerD.step()
 
         netG.zero_grad()
-        label.fill_(real_label)  # fake labels are real for generator cost
         errG = netD.teach(generated_samples)
         errG.backward()
         optimizerG.step()
 
         if i % 100 == 0:
-            vutils.save_image(data,
-                    '%s/real_samples.png' % opt.outf,
+            torchvision.utils.save_image(data,
+                                         './real_samples.png',
                     normalize=True)
             fake = netG(fixed_noise)
-            vutils.save_image(generated_samples.detach(),
-                    '%s/fake_samples_epoch_%03d.png' % (opt.outf, epoch),
+            torchvision.utils.save_image(generated_samples.detach(),
+                    './fake_samples_epoch_%03d.png' % (epoch),
                     normalize=True)
 
     # do checkpointing
-    torch.save(netG.state_dict(), '%s/netG_epoch_%d.pth' % (opt.outf, epoch))
-    torch.save(netD.state_dict(), '%s/netD_epoch_%d.pth' % (opt.outf, epoch))
+    torch.save(netG.state_dict(), './netG_epoch_%d.pth' % (epoch))
+    torch.save(netD.state_dict(), './netD_epoch_%d.pth' % (epoch))
