@@ -1,31 +1,42 @@
 import torch
 
-class Generator(torch.nn.Module):
-    def __init__(self, nz, ngf, nc):
-        super(Generator, self).__init__()
-        self.main = torch.nn.Sequential(
-            # input is Z, going into a convolution
-            torch.nn.ConvTranspose2d(     nz, ngf * 8, 4, 1, 0, bias=False),
-            torch.nn.BatchNorm2d(ngf * 8),
-            torch.nn.ReLU(True),
-            # state size. (ngf*8) x 4 x 4
-            torch.nn.ConvTranspose2d(ngf * 8, ngf * 4, 4, 2, 1, bias=False),
-            torch.nn.BatchNorm2d(ngf * 4),
-            torch.nn.ReLU(True),
-            # state size. (ngf*4) x 8 x 8
-            torch.nn.ConvTranspose2d(ngf * 4, ngf * 2, 4, 2, 1, bias=False),
-            torch.nn.BatchNorm2d(ngf * 2),
-            torch.nn.ReLU(True),
-            # state size. (ngf*2) x 16 x 16
-            torch.nn.ConvTranspose2d(ngf * 2,     ngf, 4, 2, 1, bias=False),
-            torch.nn.BatchNorm2d(ngf),
-            torch.nn.ReLU(True),
-            # state size. (ngf) x 32 x 32
-            torch.nn.ConvTranspose2d(    ngf,      nc, 4, 2, 1, bias=False),
-            torch.nn.Tanh()
-            # state size. (nc) x 64 x 64
-        )
+class GeneratorBlock(torch.nn.Module):
+    def __init__(self, nc):
+        super(GeneratorBlock, self).__init__()
+        self.c1 = torch.nn.Conv2d(nc, nc, 3, 1, 1)
+        self.c2 = torch.nn.Conv2d(nc, nc, 3, 1, 1)
+        self.c3 = torch.nn.Conv2d(nc, nc, 3, 1, 1)
+        self.c4 = torch.nn.Conv2d(nc, nc, 3, 1, 1)
+        self.b1 = torch.nn.BatchNorm2d(nc)
+        self.b2 = torch.nn.BatchNorm2d(nc)
+        self.b3 = torch.nn.BatchNorm2d(nc)
+        self.b4 = torch.nn.BatchNorm2d(nc)
 
-    def forward(self, input):
-        output = self.main(input)
-        return output
+    def forward(self, x):
+        x = torch.nn.functional.interpolate(x, scale_factor=2)
+        x = self.b1(torch.nn.functional.relu(self.c1(x)))
+        x = self.b2(torch.nn.functional.relu(self.c2(x)))
+        x = self.b3(torch.nn.functional.relu(self.c3(x)))
+        x = self.b4(torch.nn.functional.relu(self.c4(x)))
+        return x
+
+class Generator(torch.nn.Module):
+    def __init__(self, nz, nc):
+        super(Generator, self).__init__()
+        self.b1 = GeneratorBlock(nc)
+        self.b2 = GeneratorBlock(nc)
+        self.b3 = GeneratorBlock(nc)
+        self.b4 = GeneratorBlock(nc)
+        self.b5 = GeneratorBlock(nc)
+        self.b6 = GeneratorBlock(nc)
+        self.torgb = torch.nn.Conv2d(nc, 3, 1, 1, 0)
+        
+    def forward(self, x):
+        x = self.b1(x)
+        x = self.b2(x)
+        x = self.b3(x)
+        x = self.b4(x)
+        x = self.b5(x)
+        x = self.b6(x)
+        x = self.torgb(x)
+        return x

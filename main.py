@@ -33,7 +33,7 @@ dataset = torchvision.datasets.ImageFolder(root=opt.dataroot,
 nc=3
 dataloader = torch.utils.data.DataLoader(dataset, batch_size=opt.batchSize, shuffle=True, num_workers=8)
 
-netG = generator.Generator(100, 64, nc).cuda()
+netG = generator.Generator(64, 64).cuda()
 if opt.netG != '':
     netG.load_state_dict(torch.load(opt.netG))
 print(netG)
@@ -45,7 +45,7 @@ print(netD)
 
 criterion = torch.nn.BCELoss()
 
-fixed_noise = torch.randn(opt.batchSize, 100, 1, 1).cuda()
+fixed_noise = torch.randn(opt.batchSize, 64, 1, 1).cuda()
 # setup optimizer
 optimizerD = torch.optim.Adam(netD.parameters(), lr=opt.lr, betas=(.5, 0.999))
 optimizerG = torch.optim.Adam(netG.parameters(), lr=opt.lr, betas=(.5, 0.999))
@@ -53,7 +53,7 @@ optimizerG = torch.optim.Adam(netG.parameters(), lr=opt.lr, betas=(.5, 0.999))
 for epoch in range(opt.niter):
     for i, data in enumerate(dataloader, 0):
         data = data[0].cuda()
-        noise = torch.randn(data.shape[0], 100, 1, 1).cuda()
+        noise = torch.randn(data.shape[0], 64, 1, 1).cuda()
         generated_samples = netG(noise)
         netD.train(data, generated_samples.data)
         optimizerD.step()
@@ -66,11 +66,11 @@ for epoch in range(opt.niter):
         if i % 100 == 0:
             torchvision.utils.save_image(data,
                                          './real_samples.png',
-                    normalize=True)
+                                         normalize=True)
             fake = netG(fixed_noise)
             torchvision.utils.save_image(generated_samples.detach(),
-                    './fake_samples_epoch_%03d.png' % (epoch),
-                    normalize=True)
+                                         './fake_samples_epoch_%03d.png' % (epoch),
+                                         normalize=True)
 
     # do checkpointing
     torch.save(netG.state_dict(), './netG_epoch_%d.pth' % (epoch))
