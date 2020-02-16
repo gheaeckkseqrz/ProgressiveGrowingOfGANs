@@ -70,29 +70,24 @@ optimizerG = torch.optim.Adam(netG.parameters(), lr=opt.lr, betas=(opt.beta1, 0.
 
 for epoch in range(opt.niter):
     for i, data in enumerate(dataloader, 0):
-        ############################
-        # (1) Update D network: maximize log(D(x)) + log(1 - D(G(z)))
-        ###########################
-        # train with real
-        netD.zero_grad()
-        real_cpu = data[0].to(device)
-        batch_size = real_cpu.size(0)
-        label = torch.full((batch_size,), real_label, device=device)
 
-        output = netD(real_cpu)
-        errD_real = criterion(output, label)
-        errD_real.backward()
-        D_x = output.mean().item()
+        data = data[0].cuda()
+        batch_size = data.shape[0]
+        label = torch.full((batch_size,), real_label, device=device)
+        
+        noise = torch.randn(batch_size, 100, 1, 1, device=device)
+        geneated_samples = netG(noise)
+        netD.train(data, geneated_samples.data)
+
+        D_x = 0 #output.mean().item()
 
         # train with fake
-        noise = torch.randn(batch_size, 100, 1, 1, device=device)
-        fake = netG(noise)
         label.fill_(fake_label)
-        output = netD(fake.detach())
+        output = netD(geneated_samples.detach())
         errD_fake = criterion(output, label)
         errD_fake.backward()
         D_G_z1 = output.mean().item()
-        errD = errD_real + errD_fake
+        errD = errD_fake
         optimizerD.step()
 
         ############################
@@ -100,7 +95,7 @@ for epoch in range(opt.niter):
         ###########################
         netG.zero_grad()
         label.fill_(real_label)  # fake labels are real for generator cost
-        output = netD(fake)
+        output = netD(geneated_samples)
         errG = criterion(output, label)
         errG.backward()
         D_G_z2 = output.mean().item()
@@ -110,11 +105,11 @@ for epoch in range(opt.niter):
               % (epoch, opt.niter, i, len(dataloader),
                  errD.item(), errG.item(), D_x, D_G_z1, D_G_z2))
         if i % 100 == 0:
-            vutils.save_image(real_cpu,
+            vutils.save_image(data,
                     '%s/real_samples.png' % opt.outf,
                     normalize=True)
             fake = netG(fixed_noise)
-            vutils.save_image(fake.detach(),
+            vutils.save_image(geneated_samples.detach(),
                     '%s/fake_samples_epoch_%03d.png' % (opt.outf, epoch),
                     normalize=True)
 

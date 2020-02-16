@@ -27,3 +27,16 @@ class Discriminator(torch.nn.Module):
     def forward(self, input):
         output = self.main(input)
         return output.view(-1, 1).squeeze(1)
+
+    def train(self, positive, negative):
+        self.zero_grad()
+        prediction_positive = self(positive)
+        ground_truth_positive = torch.ones(prediction_positive.shape).cuda()
+        loss_positive = torch.nn.functional.binary_cross_entropy(prediction_positive, ground_truth_positive)
+
+        # prediction_negative = self(negative)
+        # ground_truth_negative = torch.zeros(prediction_negative.shape).cuda()
+        # loss_negative = torch.nn.functional.binary_cross_entropy(prediction_negative, ground_truth_negative)
+        
+        loss = loss_positive # + loss_negative;
+        loss.backward()
