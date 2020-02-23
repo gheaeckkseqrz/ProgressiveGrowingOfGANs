@@ -5,7 +5,7 @@ class Discriminator(torch.nn.Module):
         super(Discriminator, self).__init__()
         self.main = torch.nn.Sequential(
             # input is (nc) x 64 x 64
-            torch.nn.Conv2d(nc, ndf, 4, 2, 1, bias=False),
+            torch.nn.Conv2d(3, ndf, 4, 2, 1, bias=False),
             torch.nn.LeakyReLU(0.2, inplace=True),
             # state size. (ndf) x 32 x 32
             torch.nn.Conv2d(ndf, ndf * 2, 4, 2, 1, bias=False),
@@ -24,9 +24,10 @@ class Discriminator(torch.nn.Module):
             torch.nn.Sigmoid()
         )
 
-    def forward(self, input):
-        output = self.main(input)
-        return output.view(-1, 1).squeeze(1)
+    def forward(self, x):
+        x = torch.nn.functional.dropout(x)
+        x = self.main(x)
+        return x.view(-1, 1).squeeze(1)
 
     def train(self, positive, negative):
         self.zero_grad()
