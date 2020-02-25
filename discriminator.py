@@ -1,33 +1,32 @@
 import torch
+import encoder
 
 class Discriminator(torch.nn.Module):
     def __init__(self, ndf, nc):
         super(Discriminator, self).__init__()
-        self.main = torch.nn.Sequential(
-            # input is (nc) x 64 x 64
-            torch.nn.Conv2d(3, ndf, 4, 2, 1, bias=False),
-            torch.nn.LeakyReLU(0.2, inplace=True),
-            # state size. (ndf) x 32 x 32
-            torch.nn.Conv2d(ndf, ndf * 2, 4, 2, 1, bias=False),
-            torch.nn.BatchNorm2d(ndf * 2),
-            torch.nn.LeakyReLU(0.2, inplace=True),
-            # state size. (ndf*2) x 16 x 16
-            torch.nn.Conv2d(ndf * 2, ndf * 4, 4, 2, 1, bias=False),
-            torch.nn.BatchNorm2d(ndf * 4),
-            torch.nn.LeakyReLU(0.2, inplace=True),
-            # state size. (ndf*4) x 8 x 8
-            torch.nn.Conv2d(ndf * 4, ndf * 8, 4, 2, 1, bias=False),
-            torch.nn.BatchNorm2d(ndf * 8),
-            torch.nn.LeakyReLU(0.2, inplace=True),
-            # state size. (ndf*8) x 4 x 4
-            torch.nn.Conv2d(ndf * 8, 1, 4, 1, 0, bias=False),
-            torch.nn.Sigmoid()
-        )
+        self.b1 = encoder.EncoderBlock(nc)
+        self.b2 = encoder.EncoderBlock(nc)
+        self.b3 = encoder.EncoderBlock(nc)
+        self.b4 = encoder.EncoderBlock(nc)
+        self.b5 = encoder.EncoderBlock(nc)
+        self.b6 = encoder.EncoderBlock(nc)
+        self.fromrgb = torch.nn.Conv2d(3, nc, 1, 1, 0)
+        self.fc = torch.nn.Linear(nc, 1)
+        self.nc = nc
 
     def forward(self, x):
         x = torch.nn.functional.dropout(x)
-        x = self.main(x)
-        return x.view(-1, 1).squeeze(1)
+        x = self.fromrgb(x)
+        x = self.b1(x)
+        x = self.b2(x)
+        x = self.b3(x)
+        x = self.b4(x)
+        x = self.b5(x)
+        x = self.b6(x)
+        x = x.view(-1, self.nc)
+        x = self.fc(x)
+        x = torch.sigmoid(x)
+        return x
 
     def train(self, positive, negative):
         self.zero_grad()
