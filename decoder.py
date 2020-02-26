@@ -41,13 +41,13 @@ class Decoder(torch.nn.Module):
         self.alpha = 0
     
     def forward(self, x):
-        self.alpha = min(1, self.alpha + (1/1000))
+        self.alpha = min(1, self.alpha + (1/2000))
         assert x.shape[2] == 2 and x.shape[3] == 2
         for i in range(self.step):
             x = self.layers[i](x)
         x1 = self.layers[self.step](x)
         if self.step > 0:
-            x = torch.nn.functional.interpolate(x, scale_factor=2)
+            x = torch.nn.functional.interpolate(x, scale_factor=2, mode='bilinear')
             x = x * (1-self.alpha) + x1 * self.alpha
         else:
             x = x1

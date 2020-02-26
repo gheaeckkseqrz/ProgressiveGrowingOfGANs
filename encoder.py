@@ -15,10 +15,10 @@ class EncoderBlock(torch.nn.Module):
 
     def forward(self, x):
         # print(self.name, x.shape)
-        x = self.b1(torch.nn.functional.relu(self.c1(x)))
-        x = self.b2(torch.nn.functional.relu(self.c2(x)))
-        x = self.b3(torch.nn.functional.relu(self.c3(x)))
-        x = self.b4(torch.nn.functional.relu(self.c4(x)))
+        x = self.b1(torch.nn.functional.celu(self.c1(x)))
+        x = self.b2(torch.nn.functional.celu(self.c2(x)))
+        x = self.b3(torch.nn.functional.celu(self.c3(x)))
+        x = self.b4(torch.nn.functional.celu(self.c4(x)))
         return x
 
 class Encoder(torch.nn.Module):
@@ -40,12 +40,12 @@ class Encoder(torch.nn.Module):
         self.alpha = 0
 
     def forward(self, x):
-        self.alpha = min(1, self.alpha + (1/1000))
+        self.alpha = min(1, self.alpha + (1/2000))
         x1 = self.fromrgb(x)
         in_training = self.layers[- 1 - self.step]
         x = in_training(x1)
         if self.step > 0:
-            x2 = torch.nn.functional.interpolate(x1, scale_factor=.5)
+            x2 = torch.nn.functional.interpolate(x1, scale_factor=.5, mode='bilinear')
             x = x * self.alpha + x2 * (1 - self.alpha)
             for b in self.layers[-self.step:]:
                 x = b(x)

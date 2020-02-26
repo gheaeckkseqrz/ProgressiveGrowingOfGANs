@@ -26,7 +26,7 @@ parser.add_argument('--netD', default='', help="path to netD (to continue traini
 opt = parser.parse_args()
 print(opt)
 
-nc=16
+nc=64
 netG = generator.Generator(nc).cuda()
 if opt.netG != '':
     netG.load_state_dict(torch.load(opt.netG))
@@ -78,9 +78,6 @@ for step in range(6):
             errG.backward(retain_graph=True)
             torch.nn.utils.clip_grad_norm_(netG.parameters(), .4)
             adv_norm = 0
-            # for g in netG.parameters():
-            #     adv_norm += torch.norm(g.grad).item() if g.grad is not None else 0
-            # print("adv_norm", adv_norm)
             optimizerG.step()
 
             netG.zero_grad()

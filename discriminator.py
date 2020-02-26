@@ -23,12 +23,12 @@ class Discriminator(torch.nn.Module):
     def train(self, positive, negative):
         self.zero_grad()
         prediction_positive = self(positive)
-        self.e.alpha = min(1, self.e.alpha - (1/1000))
+        self.e.alpha = min(1, self.e.alpha - (1/2000))
         ground_truth_positive = torch.ones(prediction_positive.shape).cuda()
         loss_positive = torch.nn.functional.binary_cross_entropy(prediction_positive, ground_truth_positive)
 
         prediction_negative = self(negative)
-        self.e.alpha = min(1, self.e.alpha - (1/1000))
+        self.e.alpha = min(1, self.e.alpha - (1/2000))
         ground_truth_negative = torch.zeros(prediction_negative.shape).cuda()
         loss_negative = torch.nn.functional.binary_cross_entropy(prediction_negative, ground_truth_negative)
         
