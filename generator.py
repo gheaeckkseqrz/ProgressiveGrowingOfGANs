@@ -13,8 +13,6 @@ class Generator(torch.nn.Module):
         x = self.decoder(x)
         return x
 
-t = torch.Tensor(1, 3, 64, 64)
-print(t.shape)
-e = Generator(8)
-#print(e)
-print(e(t).shape)
+    def next_step(self):
+        self.encoder.next_step()
+        self.decoder.next_step()
