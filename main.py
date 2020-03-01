@@ -8,6 +8,7 @@ import torchvision.transforms as transforms
 
 import generator
 import discriminator
+import encoder
 
 import lossManager
 import visdom
@@ -37,6 +38,9 @@ if opt.netD != '':
     netD.load_state_dict(torch.load(opt.netD))
 print(netD)
 
+perceptual = encoder.Encoder(nc).cuda()
+perceptual.requires_grad = False
+
 # setup optimizer
 optimizerD = torch.optim.Adam(netD.parameters(), lr=opt.lr, betas=(.5, 0.999))
 optimizerG = torch.optim.Adam(netG.parameters(), lr=opt.lr, betas=(.5, 0.999))
@@ -49,9 +53,10 @@ adv_loss = lossManager.LossManager(win="Adversarial")
 epoch = 0
 for step in range(6):
     image_size = 4 * pow(2, step)
-    print("Step", step, "Size", image_size)
+    batch_size = min(int(8192 * 4 / pow(4, step)), 2048)
+    print("Step", step, "Size", image_size, "Batch", batch_size)
     # folder dataset
-    epoch_size = 2048 * 64
+    epoch_size = 2048 * 8 * 64
     dataset = torchvision.datasets.ImageFolder(root=opt.dataroot,
                                                transform=transforms.Compose([
                                                    transforms.Resize(image_size),
@@ -61,17 +66,19 @@ for step in range(6):
 
     for _ in range(pow(2, step)):
         dataset_part, _ = torch.utils.data.random_split(dataset, [epoch_size, len(dataset) - epoch_size])
-        dataloader = torch.utils.data.DataLoader(dataset_part, batch_size=opt.batchSize, shuffle=True, num_workers=8)
+        dataloader = torch.utils.data.DataLoader(dataset_part, batch_size=batch_size, shuffle=True)
         for i, data in enumerate(progressbar.progressbar(dataloader), 0):
             data = data[0].cuda()
-            generated_samples = netG(data)
-            loss = torch.nn.functional.mse_loss(generated_samples, data)
+            generated_samples, code = netG(data)
+            code2 = perceptual(generated_samples)
+
+            loss = torch.nn.functional.mse_loss(code2, code.data)
             l2_loss.registerLoss(loss.item())
-            netD.train(data, generated_samples.data)
+            prediction_positive, prediction_negative = netD.train(data, generated_samples.data)
             optimizerD.step()
 
             netG.zero_grad()
-            errG = netD.teach(generated_samples)
+            errG, discriminator_prediction = netD.teach(generated_samples)
             adv_loss.registerLoss(errG.item())
 
             netG.zero_grad()
@@ -82,18 +89,19 @@ for step in range(6):
 
             netG.zero_grad()
             loss.backward()
-            l2_norm = 0
-            # for g in netG.parameters():
-            #     l2_norm += torch.norm(g.grad).item() if g.grad is not None else 0
-            # print("l2_norm", l2_norm)
             optimizerG.step()
 
+            perceptual.load_state_dict(netG.encoder.state_dict())
+
             if i % 100 == 0:
-                viz.images(torch.cat([generated_samples.clamp(0, 1), data], 3), win="FAKE")
-                torchvision.utils.save_image(data,
+                viz.bar(code[0].view(1, -1), win="CODE")
+                viz.bar(discriminator_prediction.data, win="PRED", opts={'title':"Discimator Prediction for generated samples"})
+                viz.bar(prediction_positive.data, win="PREDP", opts={'title':"Discimator Prediction for positive samples"})
+                viz.bar(prediction_negative.data, win="PREDN", opts={'title':"Discimator Prediction for negative samples"})
+                viz.images(torch.cat([generated_samples.clamp(0, 1).detach(), data.data], 3), win="FAKE")
+                torchvision.utils.save_image(data.data,
                                              './real_samples.png',
                                              normalize=True)
-                fake = netG.decoder(fixed_noise)
                 torchvision.utils.save_image(generated_samples.detach(),
                                              './fake_samples_epoch_%03d.png' % (epoch),
                                              normalize=True)
@@ -104,3 +112,4 @@ for step in range(6):
         epoch += 1
     netG.next_step()
     netD.next_step()
+    perceptual.next_step()

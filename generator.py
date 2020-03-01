@@ -9,9 +9,8 @@ class Generator(torch.nn.Module):
         self.decoder = decoder.Decoder(nc)
         
     def forward(self, x):
-        x = self.encoder(x)
-        x = self.decoder(x)
-        return x
+        code = self.encoder(x)
+        return self.decoder(code), code
 
     def next_step(self):
         self.encoder.next_step()

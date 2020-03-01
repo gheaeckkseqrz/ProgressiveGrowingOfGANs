@@ -15,10 +15,10 @@ class EncoderBlock(torch.nn.Module):
 
     def forward(self, x):
         # print(self.name, x.shape)
-        x = self.b1(torch.nn.functional.celu(self.c1(x)))
-        x = self.b2(torch.nn.functional.celu(self.c2(x)))
-        x = self.b3(torch.nn.functional.celu(self.c3(x)))
-        x = self.b4(torch.nn.functional.celu(self.c4(x)))
+        x = self.b1(torch.nn.functional.celu(self.c1(x), 1, True))
+        x = self.b2(torch.nn.functional.celu(self.c2(x), 1, True))
+        x = self.b3(torch.nn.functional.celu(self.c3(x), 1, True))
+        x = self.b4(torch.nn.functional.celu(self.c4(x), 1, True))
         return x
 
 class Encoder(torch.nn.Module):

@@ -16,10 +16,10 @@ class DecoderBlock(torch.nn.Module):
     def forward(self, x):
         # print(self.name, x.shape)
         x = torch.nn.functional.interpolate(x, scale_factor=2)
-        x = self.b1(torch.nn.functional.relu(self.c1(x)))
-        x = self.b2(torch.nn.functional.relu(self.c2(x)))
-        x = self.b3(torch.nn.functional.relu(self.c3(x)))
-        x = self.b4(torch.nn.functional.relu(self.c4(x)))
+        x = self.b1(torch.nn.functional.celu(self.c1(x), 1, True))
+        x = self.b2(torch.nn.functional.celu(self.c2(x), 1, True))
+        x = self.b3(torch.nn.functional.celu(self.c3(x), 1, True))
+        x = self.b4(torch.nn.functional.celu(self.c4(x), 1, True))
         return x
 
 class Decoder(torch.nn.Module):
@@ -41,7 +41,7 @@ class Decoder(torch.nn.Module):
         self.alpha = 0
     
     def forward(self, x):
-        self.alpha = min(1, self.alpha + (1/2000))
+        self.alpha = min(1, self.alpha + (1/(2048*8)))
         assert x.shape[2] == 2 and x.shape[3] == 2
         for i in range(self.step):
             x = self.layers[i](x)
@@ -52,6 +52,7 @@ class Decoder(torch.nn.Module):
         else:
             x = x1
         x = self.torgb(x)
+        x = torch.sigmoid(x)
         return x
 
 if __name__ == "__main__":
