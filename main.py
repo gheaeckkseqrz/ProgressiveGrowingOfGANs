@@ -17,7 +17,6 @@ import progressbar
 viz = visdom.Visdom()
 
 parser = argparse.ArgumentParser()
-parser.add_argument('--dataset', required=True, help='cifar10 | lsun | mnist |imagenet | folder | lfw | fake')
 parser.add_argument('--dataroot', required=True, help='path to dataset')
 parser.add_argument('--batchSize', type=int, default=64, help='input batch size')
 parser.add_argument('--niter', type=int, default=25, help='number of epochs to train for')
